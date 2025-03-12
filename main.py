@@ -11,7 +11,7 @@ from keys import OCR_TOKEN, BOT_TOKEN
 TOKEN = BOT_TOKEN
 
 
-async def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: CallbackContext) -> None:
     keyboard = [[
         '📸 Get text from image',
         '🎵 Extract audio from video',
@@ -21,7 +21,7 @@ async def start(update: Update, context: CallbackContext):
     await update.message.reply_text('What do you want to do?', reply_markup=reply_markup)
 
 
-async def handle_choice(update: Update, context: CallbackContext):
+async def handle_choice(update: Update, context: CallbackContext) -> None:
     choice = update.message.text
 
     if choice == '📸 Get text from image':
@@ -34,7 +34,7 @@ async def handle_choice(update: Update, context: CallbackContext):
         await update.message.reply_text('Please choose a valid option.')
 
 
-async def handle_video(update: Update, context: CallbackContext):
+async def handle_video(update: Update, context: CallbackContext) -> None:
     video = update.message.video or update.message.document
     s = ''
     if not video:
@@ -53,7 +53,7 @@ async def handle_video(update: Update, context: CallbackContext):
     os.remove(audio_path)
 
 
-async def handle_photo(update: Update, context):
+async def handle_photo(update: Update, context) -> None:
     photo = update.message.photo[-1]  # Get the highest resolution photo
     file = await context.bot.get_file(photo.file_id)
     image_url = file.file_path  # Get direct image URL
@@ -82,7 +82,7 @@ async def handle_photo(update: Update, context):
         print('Error:', e)
 
 
-async def handle_audio(update: Update, context: CallbackContext):
+async def handle_audio(update: Update, context: CallbackContext) -> None:
     audio = update.message.voice or update.message.audio
     if not audio:
         return await update.message.reply_text('Please send a valid audio file.')
