@@ -1,9 +1,9 @@
 from keys import BOT_TOKEN
 import pytest
 from unittest.mock import AsyncMock, ANY
-from telegram import Update, Message
+from telegram import Message
 from telegram.ext import CallbackContext
-from main import start
+from main import start, handle_audio
 
 
 def test_telegram_token():
@@ -25,3 +25,8 @@ async def test_start_command():
         "What do you want to do?",
         reply_markup=ANY
     )
+
+
+@pytest.mark.asyncio
+async def test_handle_audio_executes():
+    assert callable(handle_audio)
