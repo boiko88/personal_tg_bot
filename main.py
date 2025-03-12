@@ -4,6 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import subprocess
 import requests
 import os
+import speech_recognition as sr
 
 from keys import OCR_TOKEN, BOT_TOKEN
 
@@ -11,7 +12,10 @@ TOKEN = BOT_TOKEN
 
 
 async def start(update: Update, context: CallbackContext):
-    keyboard = [["📸 Get text from image", "🎵 Extract audio from video"]]
+    keyboard = [[
+        '📸 Get text from image',
+        '🎵 Extract audio from video',
+        'Get text from audio']]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
     await update.message.reply_text("What do you want to do?", reply_markup=reply_markup)
@@ -24,6 +28,8 @@ async def handle_choice(update: Update, context: CallbackContext):
         await update.message.reply_text("Send me an image!")
     elif choice == "🎵 Extract audio from video":
         await update.message.reply_text("Send me a video!")
+    elif choice == 'Get text from audio':
+        await update.message.reply_text("Send me an audio")
     else:
         await update.message.reply_text("Please choose a valid option.")
 
@@ -51,7 +57,6 @@ async def handle_photo(update: Update, context):
     file = await context.bot.get_file(photo.file_id)
     image_url = file.file_path  # Get direct image URL
 
-    # Use an OCR API here (example with OCR.space)
     ocr_token = OCR_TOKEN
     image_content = requests.get(image_url).content  # Get the image data
 
@@ -76,11 +81,41 @@ async def handle_photo(update: Update, context):
         print("Error:", e)
 
 
+async def handle_audio(update: Update, context: CallbackContext):
+    audio = update.message.voice or update.message.audio
+    if not audio:
+        return await update.message.reply_text("Please send a valid audio file.")
+
+    file = await context.bot.get_file(audio.file_id)
+    audio_path = "input_audio.ogg"
+    converted_audio_path = "converted_audio.wav"
+
+    await file.download_to_drive(audio_path)
+
+    # Convert OGG/MP3 to WAV using FFmpeg
+    subprocess.run(["ffmpeg", "-i", audio_path, "-ar", "16000", "-ac", "1", converted_audio_path], check=True)
+
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(converted_audio_path) as source:
+        audio_data = recognizer.record(source)
+        try:
+            text = recognizer.recognize_google(audio_data)
+            await update.message.reply_text(f"Transcribed Text:\n{text}")
+        except sr.UnknownValueError:
+            await update.message.reply_text("Sorry, I couldn't understand the audio.")
+        except sr.RequestError:
+            await update.message.reply_text("Error with the speech recognition service.")
+
+    os.remove(audio_path)
+    os.remove(converted_audio_path)
+
+
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_choice))
 app.add_handler(MessageHandler(filters.VIDEO, handle_video))
+app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_audio))
 
 if __name__ == '__main__':
     app.run_polling()

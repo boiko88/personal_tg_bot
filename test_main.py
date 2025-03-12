@@ -1,4 +1,3 @@
-import os
 from keys import BOT_TOKEN
 import pytest
 from unittest.mock import AsyncMock, ANY
