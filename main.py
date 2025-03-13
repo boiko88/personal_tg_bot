@@ -1,10 +1,11 @@
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 import subprocess
 import requests
 import os
 import speech_recognition as sr
+from gtts import gTTS
 from loguru import logger
 
 from keys import OCR_TOKEN, BOT_TOKEN
@@ -16,7 +17,7 @@ async def start(update: Update, context: CallbackContext) -> None:
     keyboard = [[
         '📸 Get text from image',
         '🎵 Extract audio from video',
-        'Get text from audio',
+        '🎤 Get text from audio',
         '🎵 Get audio from text'
     ]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
@@ -31,22 +32,22 @@ async def handle_choice(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text('Send me an image!')
     elif choice == '🎵 Extract audio from video':
         await update.message.reply_text('Send me a video!')
-    elif choice == 'Get text from audio':
-        await update.message.reply_text('Send me an audio')
+    elif choice == '🎤 Get text from audio':
+        await update.message.reply_text('Send me an audio file or a voice message!')
     elif choice == '🎵 Get audio from text':
-        await update.message.reply_text('Send me some text')
+        await update.message.reply_text('Send me some text or a .txt file!')
+        context.user_data['awaiting_text_to_audio'] = True
     else:
         await update.message.reply_text('Please choose a valid option.')
 
 
 async def handle_video(update: Update, context: CallbackContext) -> None:
     video = update.message.video or update.message.document
-    s = ''
     if not video:
         return await update.message.reply_text('Please send a valid video file.')
 
     file = await context.bot.get_file(video.file_id)
-    video_path = f'input_video.mp4'  # Always save as MP4 for FFmpeg compatibility
+    video_path = 'input_video.mp4'  
     audio_path = 'extracted_audio.mp3'
 
     await file.download_to_drive(video_path)
@@ -58,22 +59,19 @@ async def handle_video(update: Update, context: CallbackContext) -> None:
     os.remove(audio_path)
 
 
-async def handle_photo(update: Update, context) -> None:
-    photo = update.message.photo[-1]  # Get the highest resolution photo
+async def handle_photo(update: Update, context: CallbackContext) -> None:
+    photo = update.message.photo[-1]  
     file = await context.bot.get_file(photo.file_id)
-    image_url = file.file_path  # Get direct image URL
+    image_url = file.file_path  
 
     ocr_token = OCR_TOKEN
-    image_content = requests.get(image_url).content  # Get the image data
+    image_content = requests.get(image_url).content  
 
     response = requests.post(
         'https://api.ocr.space/parse/image',
-        files={'file': ('image.jpg', image_content)},  # Fix file format
+        files={'file': ('image.jpg', image_content)},  
         data={'apikey': ocr_token, 'language': 'eng'}
     )
-
-    # Print full response for debugging
-    print('OCR API Response:', response.text)
 
     try:
         result = response.json()
@@ -97,8 +95,6 @@ async def handle_audio(update: Update, context: CallbackContext) -> None:
     converted_audio_path = 'converted_audio.wav'
 
     await file.download_to_drive(audio_path)
-
-    # Convert OGG/MP3 to WAV using FFmpeg
     subprocess.run(['ffmpeg', '-i', audio_path, '-ar', '16000', '-ac', '1', converted_audio_path], check=True)
 
     recognizer = sr.Recognizer()
@@ -116,16 +112,60 @@ async def handle_audio(update: Update, context: CallbackContext) -> None:
     os.remove(converted_audio_path)
 
 
-async def handle_text(update: Update, context: CallbackContext) -> None:
-    pass
+# async def handle_text(update: Update, context: CallbackContext) -> None:
+#     # Check if we are expecting text to audio conversion
+#     if context.user_data.get('awaiting_text_to_audio'):
+#         text = update.message.text
+#
+#         if not text:
+#             await update.message.reply_text('Please send some text.')
+#             return
+#
+#         tts = gTTS(text)
+#         audio_path = 'output.mp3'
+#         tts.save(audio_path)
+#
+#         await update.message.reply_audio(audio=open(audio_path, 'rb'))
+#         os.remove(audio_path)
+#
+#         context.user_data['awaiting_text_to_audio'] = False
+#
+#     else:
+#         await update.message.reply_text('I don\'t understand this command.')
+
+
+async def handle_document(update: Update, context: CallbackContext) -> None:
+    file = await context.bot.get_file(update.message.document.file_id)
+
+    if update.message.document.mime_type == 'text/plain':
+        file_path = 'input_text.txt'
+        await file.download_to_drive(file_path)
+
+        with open(file_path, 'r') as f:
+            text = f.read()
+
+        tts = gTTS(text)
+        audio_path = 'output.mp3'
+        tts.save(audio_path)
+
+        await update.message.reply_audio(audio=open(audio_path, 'rb'))
+        os.remove(file_path)
+        os.remove(audio_path)
+    else:
+        await update.message.reply_text('I only accept .txt files for now.')
 
 
 app = Application.builder().token(TOKEN).build()
+
+# Handlers
 app.add_handler(CommandHandler('start', start))
 app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_choice))
 app.add_handler(MessageHandler(filters.VIDEO, handle_video))
 app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_audio))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_document))
+app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
 
 if __name__ == '__main__':
     logger.debug('The Bot is launched')
