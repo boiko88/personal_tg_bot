@@ -16,7 +16,9 @@ async def start(update: Update, context: CallbackContext) -> None:
     keyboard = [[
         '📸 Get text from image',
         '🎵 Extract audio from video',
-        'Get text from audio']]
+        'Get text from audio',
+        '🎵 Get audio from text'
+    ]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
     await update.message.reply_text('What do you want to do?', reply_markup=reply_markup)
@@ -31,6 +33,8 @@ async def handle_choice(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text('Send me a video!')
     elif choice == 'Get text from audio':
         await update.message.reply_text('Send me an audio')
+    elif choice == '🎵 Get audio from text':
+        await update.message.reply_text('Send me some text')
     else:
         await update.message.reply_text('Please choose a valid option.')
 
@@ -110,6 +114,10 @@ async def handle_audio(update: Update, context: CallbackContext) -> None:
 
     os.remove(audio_path)
     os.remove(converted_audio_path)
+
+
+async def handle_text(update: Update, context: CallbackContext) -> None:
+    pass
 
 
 app = Application.builder().token(TOKEN).build()
