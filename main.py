@@ -5,6 +5,7 @@ import subprocess
 import requests
 import os
 import speech_recognition as sr
+from loguru import logger
 
 from keys import OCR_TOKEN, BOT_TOKEN
 
@@ -119,4 +120,5 @@ app.add_handler(MessageHandler(filters.VIDEO, handle_video))
 app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_audio))
 
 if __name__ == '__main__':
+    logger.debug('The Bot is launched')
     app.run_polling()
