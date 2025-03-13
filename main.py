@@ -112,28 +112,6 @@ async def handle_audio(update: Update, context: CallbackContext) -> None:
     os.remove(converted_audio_path)
 
 
-# async def handle_text(update: Update, context: CallbackContext) -> None:
-#     # Check if we are expecting text to audio conversion
-#     if context.user_data.get('awaiting_text_to_audio'):
-#         text = update.message.text
-#
-#         if not text:
-#             await update.message.reply_text('Please send some text.')
-#             return
-#
-#         tts = gTTS(text)
-#         audio_path = 'output.mp3'
-#         tts.save(audio_path)
-#
-#         await update.message.reply_audio(audio=open(audio_path, 'rb'))
-#         os.remove(audio_path)
-#
-#         context.user_data['awaiting_text_to_audio'] = False
-#
-#     else:
-#         await update.message.reply_text('I don\'t understand this command.')
-
-
 async def handle_document(update: Update, context: CallbackContext) -> None:
     file = await context.bot.get_file(update.message.document.file_id)
 
