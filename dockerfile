@@ -1,5 +1,9 @@
 FROM python:3.13-bullseye
 
+RUN apt-get update && \
+    apt-get install -y ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONBUFFERED=1
 
 WORKDIR /tg_bot
