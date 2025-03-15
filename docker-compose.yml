@@ -1,0 +1,7 @@
+version: "3.13"
+services:
+  app:
+    build: .
+    volumes:
+      - .:/tg_bot
+    container_name: tg_bot_container
