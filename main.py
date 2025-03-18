@@ -1,5 +1,5 @@
-from telegram import Update, ReplyKeyboardMarkup, InputFile
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
 
 import subprocess
 import requests
@@ -23,6 +23,11 @@ async def start(update: Update, context: CallbackContext) -> None:
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
     await update.message.reply_text('What do you want to do?', reply_markup=reply_markup)
+
+
+def get_back_to_menu_button():
+    keyboard = [[InlineKeyboardButton("Go Back to Menu", callback_data="go_back")]]
+    return InlineKeyboardMarkup(keyboard)
 
 
 async def handle_choice(update: Update, context: CallbackContext) -> None:
@@ -59,9 +64,11 @@ async def handle_video(update: Update, context: CallbackContext) -> None:
     os.remove(video_path)
     os.remove(audio_path)
 
+    await update.message.reply_text('⬅️ Go back to the main menu.', reply_markup=get_back_to_menu_button())
+
 
 async def handle_photo(update: Update, context: CallbackContext) -> None:
-    logger.debug('The Bot is processing photo')
+    logger.debug('The Bot is processing your photo')
     photo = update.message.photo[-1]
     file = await context.bot.get_file(photo.file_id)
     image_url = file.file_path
@@ -86,9 +93,11 @@ async def handle_photo(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text('Error processing image.')
         print('Error:', e)
 
+    await update.message.reply_text('⬅️ Go back to the main menu.', reply_markup=get_back_to_menu_button())
+
 
 async def handle_audio(update: Update, context: CallbackContext) -> None:
-    logger.debug('The Bot is processing audio')
+    logger.debug('The Bot is processing your audio')
     audio = update.message.voice or update.message.audio
     if not audio:
         return await update.message.reply_text('Please send a valid audio file.')
@@ -114,12 +123,14 @@ async def handle_audio(update: Update, context: CallbackContext) -> None:
     os.remove(audio_path)
     os.remove(converted_audio_path)
 
+    await update.message.reply_text('⬅️ Go back to the main menu.', reply_markup=get_back_to_menu_button())
+
 
 async def handle_document(update: Update, context: CallbackContext) -> None:
     file = await context.bot.get_file(update.message.document.file_id)
 
     if update.message.document.mime_type == 'text/plain':
-        logger.debug('The Bot is processing text')
+        logger.debug('The Bot is processing your text')
         file_path = 'input_text.txt'
         await file.download_to_drive(file_path)
 
@@ -137,6 +148,18 @@ async def handle_document(update: Update, context: CallbackContext) -> None:
     else:
         await update.message.reply_text('I only accept .txt files for now.')
 
+    await update.message.reply_text('⬅️ Go back to the main menu.', reply_markup=get_back_to_menu_button())
+
+
+async def go_back(update: Update, context: CallbackContext):
+    """Handles when the user clicks the 'Go Back' button"""
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text('What do you want to do?', reply_markup=ReplyKeyboardMarkup(
+        [['📸 Get text from image', '🎵 Extract audio from video', '🎤 Get text from audio', '🎵 Get audio from text']],
+        one_time_keyboard=True, resize_keyboard=True
+    ))
+
 
 app = Application.builder().token(TOKEN).build()
 
@@ -148,6 +171,7 @@ app.add_handler(MessageHandler(filters.VIDEO, handle_video))
 app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_audio))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_document))
 app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+app.add_handler(CallbackQueryHandler(go_back, pattern='go_back'))
 
 
 if __name__ == '__main__':
