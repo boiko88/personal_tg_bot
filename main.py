@@ -42,6 +42,7 @@ async def handle_choice(update: Update, context: CallbackContext) -> None:
 
 
 async def handle_video(update: Update, context: CallbackContext) -> None:
+    logger.debug('The Bot is processing video')
     video = update.message.video or update.message.document
     if not video:
         return await update.message.reply_text('Please send a valid video file.')
@@ -60,16 +61,17 @@ async def handle_video(update: Update, context: CallbackContext) -> None:
 
 
 async def handle_photo(update: Update, context: CallbackContext) -> None:
-    photo = update.message.photo[-1]  
+    logger.debug('The Bot is processing photo')
+    photo = update.message.photo[-1]
     file = await context.bot.get_file(photo.file_id)
-    image_url = file.file_path  
+    image_url = file.file_path
 
     ocr_token = OCR_TOKEN
-    image_content = requests.get(image_url).content  
+    image_content = requests.get(image_url).content
 
     response = requests.post(
         'https://api.ocr.space/parse/image',
-        files={'file': ('image.jpg', image_content)},  
+        files={'file': ('image.jpg', image_content)},
         data={'apikey': ocr_token, 'language': 'eng'}
     )
 
@@ -86,6 +88,7 @@ async def handle_photo(update: Update, context: CallbackContext) -> None:
 
 
 async def handle_audio(update: Update, context: CallbackContext) -> None:
+    logger.debug('The Bot is processing audio')
     audio = update.message.voice or update.message.audio
     if not audio:
         return await update.message.reply_text('Please send a valid audio file.')
@@ -116,6 +119,7 @@ async def handle_document(update: Update, context: CallbackContext) -> None:
     file = await context.bot.get_file(update.message.document.file_id)
 
     if update.message.document.mime_type == 'text/plain':
+        logger.debug('The Bot is processing text')
         file_path = 'input_text.txt'
         await file.download_to_drive(file_path)
 
@@ -129,6 +133,7 @@ async def handle_document(update: Update, context: CallbackContext) -> None:
         await update.message.reply_audio(audio=open(audio_path, 'rb'))
         os.remove(file_path)
         os.remove(audio_path)
+        logger.debug('Your audio is created')
     else:
         await update.message.reply_text('I only accept .txt files for now.')
 
