@@ -9,6 +9,8 @@ from gtts import gTTS
 from loguru import logger
 
 from keys import OCR_TOKEN, BOT_TOKEN
+from products import PRODUCT_IDS
+from parser import WildberriesParser
 
 TOKEN = BOT_TOKEN
 
@@ -18,7 +20,8 @@ async def start(update: Update, context: CallbackContext) -> None:
         '📸 Get text from image',
         '🎵 Extract audio from video',
         '🎤 Get text from audio',
-        '🎵 Get audio from text'
+        '🎵 Get audio from text',
+        '🛍 Parse Wildberries'
     ]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
@@ -42,6 +45,9 @@ async def handle_choice(update: Update, context: CallbackContext) -> None:
     elif choice == '🎵 Get audio from text':
         await update.message.reply_text('Send me some text or a .txt file!')
         context.user_data['awaiting_text_to_audio'] = True
+    elif choice == '🛍 Parse Wildberries':
+        await update.message.reply_text("⏳ Parse Wildberries...")
+        await process_products(update, PRODUCT_IDS)
     else:
         await update.message.reply_text('Please choose a valid option.')
 
@@ -159,6 +165,34 @@ async def go_back(update: Update, context: CallbackContext):
         [['📸 Get text from image', '🎵 Extract audio from video', '🎤 Get text from audio', '🎵 Get audio from text']],
         one_time_keyboard=True, resize_keyboard=True
     ))
+
+
+async def process_products(update: Update, product_ids: list[str]) -> None:
+    for product_id in product_ids:
+        try:
+            parser = WildberriesParser(product_id)
+            info = parser.parse()
+
+            message = (
+                f"📦 <b>{info['Название']}</b>\n"
+                f"🆔 Артикул: {info['Артикул']}\n"
+                f"🏷 Бренд: {info['Бренд']}\n"
+                f"💰 Цена: {info['Цена, руб']} руб\n"
+                f"🛒 Розничная: {info['Розничная цена, руб']} руб\n"
+                f"📦 Остаток: {info['Остаток']}\n"
+                f"⭐️ Рейтинг: {info['Рейтинг']}\n"
+                f"💬 Отзывы: {info['Отзывы']}\n"
+                f"🚚 Поставщик: {info['Поставщик']}\n"
+                f"🎨 Цвет: {info['Цвет']}\n"
+            )
+
+            if info['Картинка']:
+                await update.message.reply_photo(photo=info['Картинка'], caption=message, parse_mode="HTML")
+            else:
+                await update.message.reply_text(message, parse_mode="HTML")
+
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ Ошибка при обработке товара {product_id}:\n{e}")
 
 
 app = Application.builder().token(TOKEN).build()
