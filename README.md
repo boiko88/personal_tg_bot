@@ -2,7 +2,7 @@ This is a Telegram bot that can process text to audio, audio to text, video to a
 
 It uses an async approach in order to work faster. 
 
-Please create your own bit and use your own bot toke for both Telegram and ORC.
+Please create your own bot and use your own bot token for both Telegram and ORC.
 
 Installation guide. 
 
